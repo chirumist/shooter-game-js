@@ -16,7 +16,7 @@ import { Player } from './Player.js';
 import { WeaponsManager } from './Weapons.js';
 import { Enemy, spawnWaveEnemies } from './Enemy.js';
 import { createLevel, LEVEL_INFO } from './Levels.js';
-import { createParticleExplosion, updateParticles } from './Utils.js';
+import { createParticleExplosion, updateParticles, getCachedMaterial } from './Utils.js';
 
 // ============================================================
 // GAME STATES
@@ -34,6 +34,9 @@ export const GAME_STATES = {
 
 // Pre-allocated Vector3 helper to avoid Garbage Collection allocations in render loops
 const _tempPlayerChestPos = new THREE.Vector3();
+
+// Shared geometry for enemy projectiles to prevent per-shot memory allocations
+const _sharedEnemyProjGeo = new THREE.SphereGeometry(0.12, 6, 6);
 
 // ============================================================
 // GAME ENGINE CLASS
@@ -838,12 +841,8 @@ export class GameEngine {
   /** Create a projectile fired by an enemy */
   _createEnemyProjectile(origin, direction, damage) {
     const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.12, 6, 6),
-      new THREE.MeshBasicMaterial({
-        color: 0xff3333,
-        transparent: true,
-        opacity: 0.9,
-      })
+      _sharedEnemyProjGeo,
+      getCachedMaterial(0xff3333, 0.9)
     );
     mesh.position.copy(origin);
 
@@ -884,8 +883,7 @@ export class GameEngine {
 
           // Remove projectile
           this.scene.remove(proj.mesh);
-          proj.mesh.geometry.dispose();
-          proj.mesh.material.dispose();
+          // Shared geometry and cached material are reused; do not dispose them.
 
           if (died) this.gameOver();
           return false;
@@ -895,8 +893,7 @@ export class GameEngine {
       // Remove if too old
       if (proj.age >= proj.lifetime) {
         this.scene.remove(proj.mesh);
-        proj.mesh.geometry.dispose();
-        proj.mesh.material.dispose();
+        // Shared geometry and cached material are reused; do not dispose them.
         return false;
       }
 
@@ -917,16 +914,14 @@ export class GameEngine {
     // Remove enemy projectiles
     this.enemyProjectileMeshes.forEach(p => {
       this.scene.remove(p.mesh);
-      p.mesh.geometry?.dispose();
-      p.mesh.material?.dispose();
+      // Shared geometry and cached material are reused; do not dispose them.
     });
     this.enemyProjectileMeshes = [];
 
     // Remove particles
     this.particles.forEach(p => {
       this.scene.remove(p.mesh);
-      p.mesh.geometry?.dispose();
-      p.mesh.material?.dispose();
+      // Shared geometry and cached material are reused; do not dispose them.
     });
     this.particles = [];
 

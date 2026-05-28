@@ -101,6 +101,24 @@ export function sphereBoxCollision(spherePos, sphereRadius, box) {
 // PARTICLE EFFECTS
 // ============================================================
 
+// Cache registry for materials to avoid re-allocation and pipeline stalls
+const _particleMaterialCache = new Map();
+
+/**
+ * Retrieves or creates a cached THREE.MeshBasicMaterial for a given color/opacity key.
+ */
+export function getCachedMaterial(color, opacity = 1.0) {
+  const key = `${color}_${opacity}`;
+  if (!_particleMaterialCache.has(key)) {
+    _particleMaterialCache.set(key, new THREE.MeshBasicMaterial({
+      color: color,
+      transparent: opacity < 1.0,
+      opacity: opacity,
+    }));
+  }
+  return _particleMaterialCache.get(key);
+}
+
 // Shared geometry for all particles (perf: avoids per-particle geometry allocation)
 const _sharedParticleGeo = new THREE.SphereGeometry(0.08, 3, 3);
 
@@ -116,14 +134,9 @@ const _sharedParticleGeo = new THREE.SphereGeometry(0.08, 3, 3);
  */
 export function createParticleExplosion(scene, position, color, count = 12) {
   const particles = [];
+  const material = getCachedMaterial(color, 1.0);
 
   for (let i = 0; i < count; i++) {
-    const material = new THREE.MeshBasicMaterial({
-      color: color,
-      transparent: true,
-      opacity: 1.0,
-    });
-
     const mesh = new THREE.Mesh(_sharedParticleGeo, material);
     mesh.position.copy(position);
 
@@ -169,13 +182,12 @@ export function updateParticles(particles, delta, scene) {
     p.life -= p.decay * delta;
     if (p.life <= 0) {
       scene.remove(p.mesh);
-      // Don't dispose shared geometry! Only dispose material.
-      p.mesh.material.dispose();
+      // DO NOT dispose shared/cached material or geometry!
       return false;
     }
 
-    p.mesh.material.opacity = p.life;
-    p.mesh.scale.setScalar(Math.max(0.1, p.life));
+    // Shrink the particle to 0 as it decays to fade it out visually
+    p.mesh.scale.setScalar(Math.max(0.01, p.life));
     return true;
   });
 }

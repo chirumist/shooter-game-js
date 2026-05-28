@@ -10,7 +10,7 @@
  */
 
 import * as THREE from 'three';
-import { createParticleExplosion, updateParticles } from './Utils.js';
+import { createParticleExplosion, updateParticles, getCachedMaterial } from './Utils.js';
 
 // ============================================================
 // WEAPON TIER SYSTEM — New weapon every wave (5 tiers)
@@ -265,11 +265,7 @@ export class WeaponsManager {
   _createProjectile(origin, direction, config, isSpecial, isRailgun = false) {
     // Create the projectile mesh with emissive glow (no PointLight needed)
     let mesh;
-    const mat = new THREE.MeshBasicMaterial({
-      color: config.color,
-      transparent: true,
-      opacity: 0.95,
-    });
+    const mat = getCachedMaterial(config.color, 0.95);
 
     if (isRailgun) {
       // Railgun: elongated cylinder aligned along direction
@@ -380,11 +376,7 @@ export class WeaponsManager {
   _spawnTrailParticle(proj) {
     const trailMesh = new THREE.Mesh(
       this._trailGeo,
-      new THREE.MeshBasicMaterial({
-        color: proj.trailColor,
-        transparent: true,
-        opacity: 0.6,
-      })
+      getCachedMaterial(proj.trailColor, 0.6)
     );
     trailMesh.position.copy(proj.mesh.position);
     this.scene.add(trailMesh);
@@ -460,7 +452,7 @@ export class WeaponsManager {
   _removeProjectile(proj) {
     this.scene.remove(proj.mesh);
     if (proj.mesh.geometry) proj.mesh.geometry.dispose();
-    if (proj.mesh.material) proj.mesh.material.dispose();
+    // Material is cached and shared; do not dispose it.
   }
 
   /**
@@ -495,8 +487,7 @@ export class WeaponsManager {
 
     this.particles.forEach(p => {
       this.scene.remove(p.mesh);
-      if (p.mesh.geometry) p.mesh.geometry.dispose();
-      if (p.mesh.material) p.mesh.material.dispose();
+      // Particle geometries and materials are shared/cached; do not dispose them.
     });
     this.particles = [];
   }
