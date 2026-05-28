@@ -32,6 +32,9 @@ export const GAME_STATES = {
   VICTORY: 'victory',
 };
 
+// Pre-allocated Vector3 helper to avoid Garbage Collection allocations in render loops
+const _tempPlayerChestPos = new THREE.Vector3();
+
 // ============================================================
 // GAME ENGINE CLASS
 // ============================================================
@@ -861,13 +864,16 @@ export class GameEngine {
   /** Update enemy projectiles — move and check collisions with player */
   _updateEnemyProjectiles(delta) {
     this.enemyProjectileMeshes = this.enemyProjectileMeshes.filter(proj => {
-      proj.mesh.position.add(proj.velocity.clone().multiplyScalar(delta));
+      proj.mesh.position.addScaledVector(proj.velocity, delta);
       proj.age += delta;
 
       // Check collision with player
       if (this.player && this.player.alive) {
-        const dist = proj.mesh.position.distanceTo(this.player.getPosition().add(new THREE.Vector3(0, 1, 0)));
-        if (dist < 1.0) {
+        _tempPlayerChestPos.copy(this.player.getPosition());
+        _tempPlayerChestPos.y += 1.0;
+        
+        const distSq = proj.mesh.position.distanceToSquared(_tempPlayerChestPos);
+        if (distSq < 1.0) {
           const died = this.player.takeDamage(proj.damage);
 
           // Impact particles
