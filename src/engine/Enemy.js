@@ -280,7 +280,7 @@ export class Enemy {
 
   /** Get the world position of this enemy */
   getPosition() {
-    return this.mesh.position;
+    return this.mesh.position.clone();
   }
 
   /** Get the collision radius */

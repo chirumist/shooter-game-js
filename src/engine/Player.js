@@ -230,7 +230,7 @@ export class Player {
 
   /** Get the player's world position */
   getPosition() {
-    return this.mesh.position;
+    return this.mesh.position.clone();
   }
 
   /** Get the direction the player is facing */
