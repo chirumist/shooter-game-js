@@ -1,0 +1,37 @@
+{
+  "id": "/shooter-game-js/",
+  "name": "Cursed Battleground — JJK Shooter",
+  "short_name": "JJK Shooter",
+  "description": "3D TPS/FPS shooter game inspired by Jujutsu Kaisen. Play as Gojo Satoru or Ryomen Sukuna across 3 epic levels.",
+  "start_url": "/shooter-game-js/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0d0e15",
+  "theme_color": "#ec255a",
+  "icons": [
+    {
+      "src": "/shooter-game-js/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/shooter-game-js/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/shooter-game-js/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/shooter-game-js/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

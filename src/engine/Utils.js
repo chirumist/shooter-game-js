@@ -252,6 +252,11 @@ export class ObjectPool {
   }
 }
 
+// Pre-allocated Vector3s to prevent Garbage Collection overhead in hot-path updates
+const _tempClosestPoint = new THREE.Vector3();
+const _tempPushDir = new THREE.Vector3();
+const _tempToObs = new THREE.Vector3();
+
 /**
  * Resolves collision between a sphere (object position & radius) and a Box3 or bounding circle.
  * Modifies the position vector to keep it outside the obstacle.
@@ -267,38 +272,38 @@ export function resolveObstacleCollisions(position, radius, obstacles) {
     // If it has a box (Box3)
     if (obs.box) {
       // Find closest point on AABB to sphere center
-      const closestPoint = new THREE.Vector3(
+      _tempClosestPoint.set(
         Math.max(obs.box.min.x, Math.min(position.x, obs.box.max.x)),
         Math.max(obs.box.min.y, Math.min(position.y, obs.box.max.y)),
         Math.max(obs.box.min.z, Math.min(position.z, obs.box.max.z))
       );
 
       // Distance from closest point to sphere center
-      const distance = position.distanceTo(closestPoint);
+      const distance = position.distanceTo(_tempClosestPoint);
 
       if (distance < radius) {
         // Collision detected! Push sphere away along normal
-        const pushDir = new THREE.Vector3().subVectors(position, closestPoint);
-        if (pushDir.lengthSq() === 0) {
-          pushDir.set(0, 0, 1);
+        _tempPushDir.subVectors(position, _tempClosestPoint);
+        if (_tempPushDir.lengthSq() === 0) {
+          _tempPushDir.set(0, 0, 1);
         }
-        pushDir.normalize();
+        _tempPushDir.normalize();
         
         // Push outside the box
         const pushAmount = radius - distance;
-        position.addScaledVector(pushDir, pushAmount);
+        position.addScaledVector(_tempPushDir, pushAmount);
       }
     } else if (obs.radius && obs.position) {
       // Circle/cylinder check (XZ plane)
-      const toObs = new THREE.Vector3().subVectors(position, obs.position);
-      toObs.y = 0; // Flat circular check
-      const dist = toObs.length();
+      _tempToObs.subVectors(position, obs.position);
+      _tempToObs.y = 0; // Flat circular check
+      const dist = _tempToObs.length();
       const minDist = radius + obs.radius;
 
       if (dist < minDist) {
-        toObs.normalize();
+        _tempToObs.normalize();
         const pushAmount = minDist - dist;
-        position.addScaledVector(toObs, pushAmount);
+        position.addScaledVector(_tempToObs, pushAmount);
       }
     }
   });

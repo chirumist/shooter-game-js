@@ -415,10 +415,11 @@ export class WeaponsManager {
         // Skip if this enemy was already hit by this piercing railgun projectile
         if (proj.isRailgun && proj.hitEnemies.has(enemy)) continue;
 
-        const distance = proj.mesh.position.distanceTo(enemy.getPosition());
+        const distanceSq = proj.mesh.position.distanceToSquared(enemy.getPosition());
         const hitRadius = enemy.getRadius() + 0.3;
+        const hitRadiusSq = hitRadius * hitRadius;
 
-        if (distance < hitRadius) {
+        if (distanceSq < hitRadiusSq) {
           // HIT! Record the hit
           hits.push({
             enemy,

@@ -20,6 +20,7 @@ import {
 } from './components/Overlays.jsx';
 import { GAME_STATES } from './engine/GameEngine.js';
 import MobileControls from './components/MobileControls.jsx';
+import OrientationOverlay from './components/OrientationOverlay.jsx';
 
 export default function App() {
   // Game state tracked in React for UI rendering
@@ -45,6 +46,12 @@ export default function App() {
 
   // User actions
   const handleSelectCharacter = useCallback((character, isInfinity) => {
+    // Attempt screen orientation lock to landscape on mobile devices
+    if (typeof screen !== 'undefined' && screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('landscape').catch((err) => {
+        console.warn('Orientation lock failed on selection:', err);
+      });
+    }
     if (engineRef.current) {
       engineRef.current.selectCharacter(character, isInfinity);
     }
@@ -140,6 +147,9 @@ export default function App() {
           onPlayAgain={handlePlayAgain}
         />
       )}
+
+      {/* Enforce landscape mode on mobile/touch screens */}
+      <OrientationOverlay />
     </div>
   );
 }

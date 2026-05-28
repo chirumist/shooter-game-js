@@ -15,6 +15,18 @@ import * as THREE from 'three';
 import { clamp, lerp, resolveObstacleCollisions } from './Utils.js';
 import { buildGojo, buildSukuna } from './Characters.js';
 
+// Pre-allocated static vectors to avoid Garbage Collection allocations in update loops
+const _tempForward = new THREE.Vector3();
+const _tempRight = new THREE.Vector3();
+const _tempMoveDir = new THREE.Vector3();
+const _tempTargetPos = new THREE.Vector3();
+const _tempLookTarget = new THREE.Vector3();
+const _tempAimDir = new THREE.Vector3();
+const _tempAimTarget = new THREE.Vector3();
+const _tempAimOrigin = new THREE.Vector3();
+const _tempPitchAxis = new THREE.Vector3(1, 0, 0);
+const _tempYawAxis = new THREE.Vector3(0, 1, 0);
+
 // ============================================================
 // PLAYER CONFIGURATION
 // ============================================================
@@ -218,7 +230,7 @@ export class Player {
 
   /** Get the player's world position */
   getPosition() {
-    return this.mesh.position.clone();
+    return this.mesh.position;
   }
 
   /** Get the direction the player is facing */
@@ -241,20 +253,20 @@ export class Player {
       this._aimRaycaster.setFromCamera(this._aimScreenCenter, this.camera);
 
       // Get a target point far along the ray (where the crosshair points)
-      const aimTarget = new THREE.Vector3();
+      const aimTarget = _tempAimTarget;
       this._aimRaycaster.ray.at(100, aimTarget);
 
       // Calculate direction from projectile spawn point to aim target
-      const origin = this.mesh.position.clone();
+      const origin = _tempAimOrigin.copy(this.mesh.position);
       origin.y += 1.5; // Chest height
-      const dir = aimTarget.sub(origin).normalize();
+      const dir = _tempAimDir.copy(aimTarget).sub(origin).normalize();
       return dir;
     } else {
       // FPS: Use camera rotation directly
-      const dir = new THREE.Vector3(0, 0, -1);
-      dir.applyAxisAngle(new THREE.Vector3(1, 0, 0), this.pitch);
-      dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
-      return dir.normalize();
+      _tempAimDir.set(0, 0, -1);
+      _tempAimDir.applyAxisAngle(_tempPitchAxis, this.pitch);
+      _tempAimDir.applyAxisAngle(_tempYawAxis, this.yaw);
+      return _tempAimDir.normalize();
     }
   }
 
@@ -338,19 +350,19 @@ export class Player {
     }
 
     // Calculate forward and right vectors based on yaw
-    const forward = new THREE.Vector3(
+    const forward = _tempForward.set(
       -Math.sin(this.yaw),
       0,
       -Math.cos(this.yaw)
     );
-    const right = new THREE.Vector3(
+    const right = _tempRight.set(
       Math.cos(this.yaw),
       0,
       -Math.sin(this.yaw)
     );
 
     // Build movement vector
-    const moveDir = new THREE.Vector3();
+    const moveDir = _tempMoveDir.set(0, 0, 0);
     if (this.keys.forward) moveDir.add(forward);
     if (this.keys.backward) moveDir.sub(forward);
     if (this.keys.left) moveDir.sub(right);
@@ -445,7 +457,7 @@ export class Player {
 
     } else {
       // First-person: camera at eye level
-      const targetPos = new THREE.Vector3(
+      const targetPos = _tempTargetPos.set(
         playerPos.x,
         playerPos.y + fps.eyeHeight,
         playerPos.z
@@ -455,7 +467,7 @@ export class Player {
 
       // Set camera rotation from yaw/pitch
       const lookDir = this.getAimDirection();
-      const lookTarget = this.camera.position.clone().add(lookDir.multiplyScalar(10));
+      const lookTarget = _tempLookTarget.copy(this.camera.position).addScaledVector(lookDir, 10);
       this.camera.lookAt(lookTarget);
     }
   }

@@ -58,6 +58,14 @@ const DIFFICULTY = {
   },
 };
 
+// Pre-allocated static vectors to avoid Garbage Collection allocations in update loops
+const _tempPlayerTargetPos = new THREE.Vector3();
+const _tempToPlayer = new THREE.Vector3();
+const _tempMoveDir = new THREE.Vector3();
+const _tempStrafeDir = new THREE.Vector3();
+const _tempFlankAxis = new THREE.Vector3(0, 1, 0);
+const _tempKnockbackVec = new THREE.Vector3();
+
 // ============================================================
 // ENEMY CLASS
 // ============================================================
@@ -184,11 +192,11 @@ export class Enemy {
     this.stateTimer += delta;
 
     // Calculate distance to player (target player's chest height)
-    const playerTargetPos = playerPosition.clone();
-    playerTargetPos.y += 1.0; // Aim at chest height
-    const toPlayer = new THREE.Vector3().subVectors(playerTargetPos, this.mesh.position);
-    const distToPlayer = toPlayer.length();
-    toPlayer.normalize();
+    _tempPlayerTargetPos.copy(playerPosition);
+    _tempPlayerTargetPos.y += 1.0; // Aim at chest height
+    _tempToPlayer.subVectors(_tempPlayerTargetPos, this.mesh.position);
+    const distToPlayer = _tempToPlayer.length();
+    _tempToPlayer.normalize();
 
     // Run state machine
     switch (this.state) {
@@ -199,10 +207,10 @@ export class Enemy {
         this._updatePatrol(delta, distToPlayer);
         break;
       case STATES.CHASE:
-        this._updateChase(delta, toPlayer, distToPlayer);
+        this._updateChase(delta, _tempToPlayer, distToPlayer);
         break;
       case STATES.ATTACK:
-        this._updateAttack(delta, toPlayer, distToPlayer);
+        this._updateAttack(delta, _tempToPlayer, distToPlayer);
         break;
     }
 
@@ -264,15 +272,15 @@ export class Enemy {
     this.hitTimer = 0.2;
 
     // Knockback
-    const knockback = this.lastDirection.clone().negate().multiplyScalar(0.5);
-    this.mesh.position.add(knockback);
+    _tempKnockbackVec.copy(this.lastDirection).negate().multiplyScalar(0.5);
+    this.mesh.position.add(_tempKnockbackVec);
 
     return false;
   }
 
   /** Get the world position of this enemy */
   getPosition() {
-    return this.mesh.position.clone();
+    return this.mesh.position;
   }
 
   /** Get the collision radius */
@@ -284,8 +292,9 @@ export class Enemy {
   consumeAttack() {
     if (this.pendingAttack) {
       this.pendingAttack = false;
+      const attackPos = new THREE.Vector3(this.mesh.position.x, this.mesh.position.y + 1.0, this.mesh.position.z);
       return {
-        position: this.mesh.position.clone().add(new THREE.Vector3(0, 1, 0)),
+        position: attackPos,
         direction: this.attackDirection.clone(),
         damage: this.damage,
       };
@@ -382,26 +391,26 @@ export class Enemy {
     }
 
     // Move toward player
-    let moveDir = toPlayer.clone();
+    _tempMoveDir.copy(toPlayer);
 
     // Level 2+: Add flanking behavior (approach at an angle)
     if (this.difficulty >= 2 && !this.isBoss) {
       const flankAngle = Math.sin(this.stateTimer * 2) * 0.5;
-      moveDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), flankAngle);
+      _tempMoveDir.applyAxisAngle(_tempFlankAxis, flankAngle);
     }
 
     // Level 3: Add dodge behavior when projectiles are near
     // (simplified: random strafe while chasing)
     if (this.difficulty >= 3) {
-      const strafeDir = new THREE.Vector3(-moveDir.z, 0, moveDir.x);
-      strafeDir.multiplyScalar(Math.sin(this.stateTimer * 3) * 0.4);
-      moveDir.add(strafeDir).normalize();
+      _tempStrafeDir.set(-_tempMoveDir.z, 0, _tempMoveDir.x);
+      _tempStrafeDir.multiplyScalar(Math.sin(this.stateTimer * 3) * 0.4);
+      _tempMoveDir.add(_tempStrafeDir).normalize();
     }
 
-    moveDir.y = 0; // Keep on ground plane
-    moveDir.normalize();
+    _tempMoveDir.y = 0; // Keep on ground plane
+    _tempMoveDir.normalize();
 
-    this.mesh.position.add(moveDir.multiplyScalar(this.speed * delta));
+    this.mesh.position.addScaledVector(_tempMoveDir, this.speed * delta);
     this._faceDirection(toPlayer);
     this.lastDirection.copy(toPlayer);
   }
@@ -433,7 +442,7 @@ export class Enemy {
 
       // Visual: lunge forward slightly (skip for flying spirits to keep flight stable)
       if (this.type !== 'flying') {
-        this.mesh.position.add(toPlayer.clone().multiplyScalar(0.2));
+        this.mesh.position.addScaledVector(toPlayer, 0.2);
       }
     }
   }
@@ -445,7 +454,10 @@ export class Enemy {
   /** Pick a random patrol target near current position */
   _pickPatrolTarget() {
     const range = 8;
-    this.patrolTarget = new THREE.Vector3(
+    if (!this.patrolTarget) {
+      this.patrolTarget = new THREE.Vector3();
+    }
+    this.patrolTarget.set(
       this.mesh.position.x + randomRange(-range, range),
       0,
       this.mesh.position.z + randomRange(-range, range)
